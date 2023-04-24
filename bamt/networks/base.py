@@ -776,3 +776,115 @@ class BaseNetwork(object):
             os.mkdir("visualization_result")
 
         return network.show(f'visualization_result/' + output)
+
+    def plot2(self, directory: str, output: str, random_state=42, max_cat=3, custom_mapper=None):
+        """
+        Visualize a Bayesian Network. Result will be saved
+        in parent directory in folder visualization_result.
+        output: str name of output file
+        """
+        if not output.endswith('.html'):
+            logger_network.error("This version allows only html format.")
+            return None
+
+        G = nx.DiGraph()
+        nodes = [node.name for node in self.nodes]
+        G.add_nodes_from(nodes)
+        G.add_edges_from(self.edges)
+
+        network = Network(height="800px", width="100%", notebook=True, directed=nx.is_directed(G),
+                          layout='hierarchical')
+
+        nodes_sorted = np.array(
+            list(nx.topological_generations(G)), dtype=object)
+
+        # Qualitative class of colormaps
+        q_classes = ['Pastel1', 'Pastel2', 'Paired', 'Accent', 'Dark2', 'Set1', 'Set2', 'Set3', 'tab10', 'tab20',
+                     'tab20b']
+
+        hex_colors = []
+        for cls in q_classes:
+            rgb_colors = plt.get_cmap(cls).colors
+            hex_colors.extend(
+                [matplotlib.colors.rgb2hex(rgb_color) for rgb_color in rgb_colors])
+
+        hex_colors = np.array(hex_colors)
+        # Number_of_colors in matplotlib in Qualitative class = 144
+
+        np.random.seed(random_state)
+
+        class_number = max_cat
+        hex_colors_indexes = np.random.choice(class_number, class_number, replace=False)
+        np.random.randint(0, class_number, class_number)
+        # np.random.choice(class_number, max_cat, replace=False)
+        if custom_mapper is not None:
+            hex_colors_indexes = np.append(hex_colors_indexes,
+                                           np.random.choice(list(range(class_number, len(hex_colors))),
+                                                            len(custom_mapper.keys()), replace=False))
+
+        hex_colors_picked = hex_colors[hex_colors_indexes]
+
+        class2color = {cls: color for cls, color in zip(
+            list(range(len(hex_colors_picked))), hex_colors_picked)}
+        if custom_mapper is not None:
+            customs = {k: v for k, v in zip(custom_mapper.keys(), list(range(class_number, len(hex_colors_picked))))}
+            name2class = {node.name: (
+                node.name[-1] if node.name[:(len(node.name) - 1)] not in custom_mapper.keys() else node.name[:(len(node.name) - 1)])for node in self.nodes}
+        else:
+            name2class = {node.name: node.name[-1] for node in self.nodes}
+
+        if custom_mapper is not None:
+            name_mapper = custom_mapper
+        else:
+            name_mapper = dict()
+        if max_cat == 3:
+            name_mapper['other'] = {0: 'Low', 1: 'Mid', 2: 'High'}
+        else:
+            name_mapper['other'] = {k: v for k, v in enumerate(list(range(max_cat)))}
+
+        for level in range(len(nodes_sorted)):
+            for node_i in range(len(nodes_sorted[level])):
+                name = nodes_sorted[level][node_i]
+                if custom_mapper is None or name[:(len(name) - 1)] not in custom_mapper.keys():
+                    cls = int(name2class[name])
+                else:
+                    cls = customs[name2class[name]]
+                    # name2class[customs[name[:(len(name)-1)]]]
+                color = class2color[cls]
+                if custom_mapper is None or name[:(len(name) - 1)] not in custom_mapper.keys():
+                    network.add_node(name, label=name[:(len(name) - 1)] + '_' + name_mapper['other'][cls], color=color,
+                                     size=45, level=level, font={'size': 36},
+                                     title=f"Узел байесовской сети {name} (Уровень {name_mapper['other'][cls]})")
+                else:
+                    network.add_node(name, label=name[:(len(name) - 1)] + '_' + custom_mapper[name2class[name]][
+                        int(name[-1])], color=color, size=45,
+                                     level=level, font={'size': 36},
+                                     title=f"Узел байесовской сети {name[:(len(name) - 1)] + '_' + custom_mapper[name2class[name]][int(name[-1])]}")
+
+        for edge in G.edges:
+            network.add_edge(edge[0], edge[1])
+
+        network.hrepulsion(node_distance=300, central_gravity=0.5)
+
+        if not (os.path.exists(directory)):
+            os.mkdir(directory)
+
+        network.show_buttons(filter_=["physics"])
+        return network.show(directory + '/' + output)
+
+    def plot_for_specific_node(self, node, directory: str, output: str, random_state=42, max_cat=3, custom_mapper=None):
+        edges = [edge for edge in self.edges if node in edge]
+        nodes = list(set(sum(edges, start=list())))
+        #print(nodes)
+        subbn = BaseNetwork()
+        subbn.add_nodes({'types': {node: 'disc' for _, node in enumerate(nodes)}})
+        subbn.set_structure(edges=edges)
+        return subbn.plot2(directory, output, random_state, max_cat, custom_mapper)
+
+    def plot_for_specific_nodes(self, nodes_list, directory: str, output: str, random_state=42, max_cat=3, custom_mapper=None):
+        edges = [edge for node in nodes_list for edge in self.edges  if node in edge]
+        nodes = list(set(sum(edges, start=list())))
+        subbn = BaseNetwork()
+        subbn.add_nodes({'types': {node: 'disc' for _, node in enumerate(nodes)}})
+        subbn.set_structure(edges=edges)
+        return subbn.plot2(directory, output, random_state, max_cat, custom_mapper)
