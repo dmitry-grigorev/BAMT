@@ -278,30 +278,6 @@ def plot_cat(bn, directory: str, output: str, random_state=42, max_cat=3, custom
     return network.show(directory + '/' + output)
 
 
-def learn_bn(data_discretized_enc, categories, params):
-    all_edges = list()
-    # Для демонстрации проблемы ансамблевое построение необязательно
-    r = 1
-    bn = discrete_bn.DiscreteBN()
-
-    nodes_descriptor = {"types": {cat: 'disc' for _, cat in enumerate(categories)},
-                        "signs": {}}
-    bn.add_nodes(nodes_descriptor)
-
-    for k in range(r):
-        bn.add_edges(data_discretized_enc.astype("int32"), scoring_function=("K2", K2Score), params=params,
-                     progress_bar=False)
-        all_edges += [tuple(e) for e in bn.edges.copy()]
-        bn.edges = list()
-        print(f'{k + 1}/{r} BNs learnt in ensemble', end='\r')
-
-    counter = Counter(all_edges)
-
-    # voting construction of BN (if r == 1, there is no voting)
-    bn.edges = [list(e) for e in list(counter) if counter[e] > (r // 2) or r == 1]
-    return bn
-
-
 def calculate_ratio(bn_edges, true_edges):
     return len([edge for edge in bn_edges if edge in true_edges]) / len(true_edges)
 

@@ -1,5 +1,6 @@
 import numpy as np
 import networkx as nx
+import  matplotlib.pyplot as plt
 import pandas as pd
 import experiments2.auxiliary.auxiliary as ex2aux
 
@@ -16,6 +17,11 @@ def simulation(n_features, n_samples=2000, random_state=42, n_trials=20):
         edges, into_degree, out_degree, position = DAGs_generate(n=n_features, max_out=5, random_state=seed)
         bn_graph = nx.DiGraph()
         bn_graph.add_edges_from(edges)
+        bn_graph.add_nodes_from(list(range(1, n_features+1)))
+
+        plt.figure()
+        nx.draw_networkx(bn_graph, arrows=True, pos=position)
+        plt.show()
 
         adj_m = set_signs(bn_graph, seed)
 
@@ -33,10 +39,13 @@ def simulation(n_features, n_samples=2000, random_state=42, n_trials=20):
         wde_acc.append(wde)
 
         del kbn
+        del edges
+        del bn_graph
+        del adj_m
 
         print(f"Stage {i+1}", end='\r')
-    print("mean, min and max precision on right direction: {.3f:}|{.3f:}|{.3f:} \n".format(sum(rde_acc)/n_trials, min(rde_acc), max(rde_acc)))
-    print("mean, min and max precision on wrong direction: {.3f:}|{.3f:}|{.3f:} \n".format(sum(wde_acc) / n_trials,
+    print("mean, min and max precision on right direction: {:.3f} {:.3f} {:.3f} \n".format(sum(rde_acc)/n_trials, min(rde_acc), max(rde_acc)))
+    print("mean, min and max precision on wrong direction: {:.3f} {:.3f} {:.3f} \n".format(sum(wde_acc) / n_trials,
                                                                                            min(wde_acc), max(wde_acc)))
 
 
