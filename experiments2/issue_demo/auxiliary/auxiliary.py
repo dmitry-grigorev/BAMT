@@ -1,10 +1,8 @@
 import numpy as np
 
-import bamt.preprocessors
 from bamt.log import logger_network
 from pyvis.network import Network
-import bamt.networks as Nets
-from bamt.networks.discrete_bn import DiscreteBN
+from bamt.networks import discrete_bn
 import pandas as pd
 from sklearn.preprocessing import OneHotEncoder, KBinsDiscretizer
 from itertools import product
@@ -162,7 +160,7 @@ def learn_bn(data_discretized_enc, categories, params):
     all_edges = list()
     # Для демонстрации проблемы ансамблевое построение необязательно
     r = 1
-    bn = DiscreteBN()
+    bn = discrete_bn.DiscreteBN()
 
     nodes_descriptor = {"types": {cat: 'disc' for _, cat in enumerate(categories)},
                         "signs": {}}

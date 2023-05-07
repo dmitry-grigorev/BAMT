@@ -1,9 +1,8 @@
 import numpy as np
 
-import bamt.preprocessors
 from bamt.log import logger_network
 from pyvis.network import Network
-import bamt.networks as Nets
+from bamt.networks import discrete_bn
 import pandas as pd
 from sklearn.preprocessing import OneHotEncoder, KBinsDiscretizer
 from itertools import product
@@ -162,7 +161,7 @@ def learn_bn(data_discretized_enc, categories, params):
     all_edges = list()
     # Для демонстрации проблемы ансамблевое построение необязательно
     r = 1
-    bn = Nets.DiscreteBN()
+    bn = discrete_bn.DiscreteBN()
 
     nodes_descriptor = {"types": {cat: 'disc' for _, cat in enumerate(categories)},
                         "signs": {}}
@@ -173,54 +172,13 @@ def learn_bn(data_discretized_enc, categories, params):
                      progress_bar=False)
         all_edges += [tuple(e) for e in bn.edges.copy()]
         bn.edges = list()
-        print(f'{k + 1}/{r} BNs learnt in ensemble', end='\r')
+        #print(f'{k + 1}/{r} BNs learnt in ensemble', end='\r')
 
     counter = Counter(all_edges)
 
     # voting construction of BN (if r == 1, there is no voting)
     bn.edges = [list(e) for e in list(counter) if counter[e] > (r // 2) or r == 1]
     return bn
-
-
-def calculate_ratio(bn_edges, true_edges):
-    return len([edge for edge in bn_edges if edge in true_edges]) / len(true_edges)
-
-
-def calculate_reversed_ratio(bn_edges, true_edges):
-    return len([edge for edge in bn_edges if edge not in true_edges and edge[::-1] in true_edges]) / len(
-        true_edges)
-
-
-def noising_standard(true_edges, bn_result, data, construct_func, force_dist):
-    np.random.seed(42)
-
-    for edge in true_edges:
-        forced_edge = edge
-        source_num = 0
-        n_trials, counter = 20, 0
-        state_index = bn_result['disc_data'][bn_result['disc_data'][forced_edge[1]] == 1].index
-        m = state_index.shape[0]
-        mean, std = data.loc[state_index, forced_edge[1][:-1]].mean(), data.loc[state_index, forced_edge[1][:-1]].std()
-
-        for s in range(n_trials):
-            data_kdisc = data.copy(deep=True)
-            data_kdisc.loc[state_index, forced_edge[1][:-1]] += force_dist(mean, std, size=m)
-
-            kbn1 = construct_func(data_kdisc, ['marker'])['bn']
-
-            if forced_edge in kbn1.edges:
-                counter += 1
-            del kbn1
-            del data_kdisc
-        print(f'Noising of true edge {edge}`s in-node the edge occured in {counter / n_trials * 100}% of cases ')
-
-
-def force_normal_noise(mean, std, size):
-    return np.random.normal(mean, std, size=size)
-
-
-def force_uniform_noise(mean, std, size):
-    return np.random.uniform(-np.abs(mean)/2, np.abs(mean)/2, size=size)
 
 
 def plot_cat(bn, directory: str, output: str, random_state=42, max_cat=3, custom_mapper=None):
@@ -318,3 +276,68 @@ def plot_cat(bn, directory: str, output: str, random_state=42, max_cat=3, custom
 
     network.show_buttons(filter_=["physics"])
     return network.show(directory + '/' + output)
+
+
+def learn_bn(data_discretized_enc, categories, params):
+    all_edges = list()
+    # Для демонстрации проблемы ансамблевое построение необязательно
+    r = 1
+    bn = discrete_bn.DiscreteBN()
+
+    nodes_descriptor = {"types": {cat: 'disc' for _, cat in enumerate(categories)},
+                        "signs": {}}
+    bn.add_nodes(nodes_descriptor)
+
+    for k in range(r):
+        bn.add_edges(data_discretized_enc.astype("int32"), scoring_function=("K2", K2Score), params=params,
+                     progress_bar=False)
+        all_edges += [tuple(e) for e in bn.edges.copy()]
+        bn.edges = list()
+        print(f'{k + 1}/{r} BNs learnt in ensemble', end='\r')
+
+    counter = Counter(all_edges)
+
+    # voting construction of BN (if r == 1, there is no voting)
+    bn.edges = [list(e) for e in list(counter) if counter[e] > (r // 2) or r == 1]
+    return bn
+
+
+def calculate_ratio(bn_edges, true_edges):
+    return len([edge for edge in bn_edges if edge in true_edges]) / len(true_edges)
+
+
+def calculate_reversed_ratio(bn_edges, true_edges):
+    return len([edge for edge in bn_edges if edge not in true_edges and edge[::-1] in true_edges]) / len(
+        true_edges)
+
+
+def noising_standard(true_edges, bn_result, data, construct_func, force_dist):
+    np.random.seed(42)
+
+    for edge in true_edges:
+        forced_edge = edge
+        source_num = 0
+        n_trials, counter = 20, 0
+        state_index = bn_result['disc_data'][bn_result['disc_data'][forced_edge[1]] == 1].index
+        m = state_index.shape[0]
+        mean, std = data.loc[state_index, forced_edge[1][:-1]].mean(), data.loc[state_index, forced_edge[1][:-1]].std()
+
+        for s in range(n_trials):
+            data_kdisc = data.copy(deep=True)
+            data_kdisc.loc[state_index, forced_edge[1][:-1]] += force_dist(mean, std, size=m)
+
+            kbn1 = construct_func(data_kdisc, ['marker'])['bn']
+
+            if forced_edge in kbn1.edges:
+                counter += 1
+            del kbn1
+            del data_kdisc
+        print(f'Noising of true edge {edge}`s in-node the edge occured in {counter / n_trials * 100}% of cases ')
+
+
+def force_normal_noise(mean, std, size):
+    return np.random.normal(mean, std, size=size)
+
+
+def force_uniform_noise(mean, std, size):
+    return np.random.uniform(-np.abs(mean) / 2, np.abs(mean) / 2, size=size)
