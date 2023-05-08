@@ -8,22 +8,22 @@ from experiments3.random_DAG_generation import *
 import random
 
 
-def simulation(n_features, n_samples=2000, random_state=42, n_trials=20):
+def simulation(n_features, n_samples=2000, random_state=42, n_trials=20, transitive_mode=False):
     names = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth']
     rde_acc, wde_acc = list(), list()
     for i in range(n_trials):
         seed = random_state + i
 
-        edges, into_degree, out_degree, position = DAGs_generate(n=n_features, max_out=5, random_state=seed)
+        edges, into_degree, out_degree, position = DAGs_generate(n=n_features, max_out=2, random_state=seed)
         bn_graph = nx.DiGraph()
         bn_graph.add_edges_from(edges)
         bn_graph.add_nodes_from(list(range(1, n_features+1)))
 
-        plt.figure()
-        nx.draw_networkx(bn_graph, arrows=True, pos=position)
-        plt.show()
+        #plt.figure()
+        #nx.draw_networkx(bn_graph, arrows=True, pos=position)
+        #plt.show()
 
-        adj_m = set_signs(bn_graph, seed)
+        adj_m = set_signs(bn_graph, seed) if not transitive_mode else get_adjacency_matrix_transitive(set_signs(bn_graph, seed), bn_graph)
 
         true_edges = instantiate_gradation_relation(names, adj_m)
 
@@ -42,6 +42,7 @@ def simulation(n_features, n_samples=2000, random_state=42, n_trials=20):
         del edges
         del bn_graph
         del adj_m
+        del data
 
         print(f"Stage {i+1}", end='\r')
     print("mean, min and max precision on right direction: {:.3f} {:.3f} {:.3f} \n".format(sum(rde_acc)/n_trials, min(rde_acc), max(rde_acc)))
@@ -56,6 +57,22 @@ def set_signs(G, random_state=42):
     for i, j in zip(irows, icols):
         adj_m[i, j] = np.random.uniform(-2, 2)
     return adj_m
+
+
+def get_adjacency_matrix_transitive(adj_m, bn_graph):
+    # создаём матрицу линейных соотношений в транзитивном замыкании
+    n = bn_graph.number_of_nodes()
+    M = np.zeros_like(adj_m)
+    for J in range(n, 0, -1):
+        #посещаем каждую вершину в обратном обходе
+        for j, i in nx.dfs_edges(bn_graph.reverse(), source=J):
+            # от каждой обходим граф в глубину для связывания линейных соотношений
+            if j == J:
+                M[i-1, J-1] = adj_m[i-1, j-1]
+            for j1, i1 in nx.bfs_edges(bn_graph.reverse(), source=i, depth_limit=1):
+                # перемножаем
+                M[i1-1, J-1] += M[i-1, J-1]*adj_m[i1-1, j1-1]
+    return M
 
 
 def instantiate_gradation_relation(names, adj_m):

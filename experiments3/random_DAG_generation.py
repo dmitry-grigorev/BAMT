@@ -70,7 +70,7 @@ def DAGs_generate(n=10, max_out=2, alpha=1, beta=1.0, random_state=42):
             bridge = random.sample(sample_list, od)
             for k in bridge:
                 edges.append((dag_list_update[i][j], dag_list_update[i + 1][k]))
-                into_degree[pred + len(dag_list_update[i]) + k] += 1
+                #into_degree[pred + len(dag_list_update[i]) + k] += 1
                 out_degree[pred + j] += 1
         pred += len(dag_list_update[i])
 
