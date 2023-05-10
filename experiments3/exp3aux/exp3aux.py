@@ -76,20 +76,20 @@ def simulation(n_features, n_samples=2000, random_state=42, n_trials=20, transit
         del data
 
         print(f"Stage {i + 1}", end='\r')
-    print("mean, min and max precision on right direction: {:.3f} {:.3f} {:.3f} \n".format(sum(rde_acc) / n_trials,
-                                                                                           min(rde_acc), max(rde_acc)))
-    print("mean, min and max precision on wrong direction: {:.3f} {:.3f} {:.3f} \n".format(sum(wde_acc) / n_trials,
-                                                                                           min(wde_acc), max(wde_acc)))
-    print("mean, min and max precision on ascending relations: {:.3f} {:.3f} {:.3f} \n".format(
-        sum(asce_acc) / len(asce_acc),
-        min(asce_acc), max(asce_acc)))
-    print("mean, min and max precision on descending relations: {:.3f} {:.3f} {:.3f} \n".format(
-        sum(dsce_acc) / len(dsce_acc),
-        min(dsce_acc),
-        max(dsce_acc)))
-    print("mean, min and max precision on wrong edges among all in BN: {:.3f} {:.3f} {:.3f} \n".format(
-        sum(wrong_acc) / n_trials,
-        min(wrong_acc), max(wrong_acc)))
+
+    answer = [sum(rde_acc) / n_trials, min(rde_acc), max(rde_acc),
+              sum(wde_acc) / n_trials, min(wde_acc), max(wde_acc),
+              sum(asce_acc) / len(asce_acc), min(asce_acc), max(asce_acc),
+              sum(dsce_acc) / len(dsce_acc), min(dsce_acc), max(dsce_acc),
+              sum(wrong_acc) / n_trials, min(wrong_acc), max(wrong_acc)
+              ]
+
+    print("mean, min and max precision on right direction: {:.3f} {:.3f} {:.3f} \n".format(*answer[:3]))
+    print("mean, min and max precision on wrong direction: {:.3f} {:.3f} {:.3f} \n".format(*answer[3:6]))
+    print("mean, min and max precision on ascending relations: {:.3f} {:.3f} {:.3f} \n".format(*answer[6:9]))
+    print("mean, min and max precision on descending relations: {:.3f} {:.3f} {:.3f} \n".format(*answer[9:12]))
+    print("mean, min and max precision on wrong edges among all in BN: {:.3f} {:.3f} {:.3f} \n".format(*answer[12:15]))
+    return answer
 
 
 def set_signs(G, random_state=42):
