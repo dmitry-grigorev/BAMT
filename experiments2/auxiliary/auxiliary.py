@@ -6,7 +6,7 @@ from bamt.networks import discrete_bn
 import pandas as pd
 from sklearn.preprocessing import OneHotEncoder, KBinsDiscretizer
 from itertools import product
-from pgmpy.estimators import K2Score
+from pgmpy.estimators import K2Score, BicScore, BDeuScore
 
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -23,7 +23,6 @@ import random
 import copy
 
 plt.rcParams.update({'font.size': 14})
-
 
 def print_histogram(feat, data, data_discretized_enc, encoder):
     """
@@ -63,7 +62,7 @@ def fix_categories(categories_to_fix, data, categories):
         categories.append((feat + str(categories_to_fix[feat])))
 
 
-def construct_by_quantiles(data: pd.DataFrame, categoricals: list, max_cat=3):
+def construct_by_quantiles(data: pd.DataFrame, categoricals: list, scoring, max_cat=3):
     data_discretized = data.copy(deep=True)
     conts = data.columns if categoricals is None else data.columns.difference(categoricals)
     for feat in conts:
@@ -84,7 +83,7 @@ def construct_by_quantiles(data: pd.DataFrame, categoricals: list, max_cat=3):
 
     params = {'bl_add': ublacklist}
 
-    bn = learn_bn(data_discretized_enc, categories, params)
+    bn = learn_bn(data_discretized_enc, categories, params, scoring=scoring)
 
     return {'bn': bn,
             'encoder': encoder,
@@ -92,7 +91,7 @@ def construct_by_quantiles(data: pd.DataFrame, categoricals: list, max_cat=3):
             'disc_data': data_discretized_enc}
 
 
-def construct_by_uniform(data: pd.DataFrame, categoricals: list, max_cat=3):
+def construct_by_uniform(data: pd.DataFrame, categoricals: list, scoring, max_cat=3):
     data_discretized = data.copy(deep=True)
     conts = data.columns if categoricals is None else data.columns.difference(categoricals)
     for feat in conts:
@@ -113,7 +112,7 @@ def construct_by_uniform(data: pd.DataFrame, categoricals: list, max_cat=3):
 
     params = {'bl_add': ublacklist}
 
-    bn = learn_bn(data_discretized_enc, categories, params)
+    bn = learn_bn(data_discretized_enc, categories, params, scoring=scoring)
 
     return {'bn': bn,
             'encoder': encoder,
@@ -121,7 +120,7 @@ def construct_by_uniform(data: pd.DataFrame, categoricals: list, max_cat=3):
             'disc_data': data_discretized_enc}
 
 
-def construct_by_kmeans(data: pd.DataFrame, categoricals: list, max_cat=3):
+def construct_by_kmeans(data: pd.DataFrame, categoricals: list, scoring, max_cat=3):
     data_discretized = data.copy(deep=True)
     conts = data.columns if categoricals is None else data.columns.difference(categoricals)
 
@@ -149,7 +148,7 @@ def construct_by_kmeans(data: pd.DataFrame, categoricals: list, max_cat=3):
 
     params = {'bl_add': ublacklist}
 
-    bn = learn_bn(data_discretized_enc, categories, params)
+    bn = learn_bn(data_discretized_enc, categories, params, scoring=scoring)
 
     return {'bn': bn,
             'encoder': encoder,
@@ -157,7 +156,7 @@ def construct_by_kmeans(data: pd.DataFrame, categoricals: list, max_cat=3):
             'disc_data': data_discretized_enc}
 
 
-def learn_bn(data_discretized_enc, categories, params):
+def learn_bn(data_discretized_enc, categories, params, scoring):
     all_edges = list()
     # Для демонстрации проблемы ансамблевое построение необязательно
     r = 1
@@ -168,7 +167,7 @@ def learn_bn(data_discretized_enc, categories, params):
     bn.add_nodes(nodes_descriptor)
 
     for k in range(r):
-        bn.add_edges(data_discretized_enc.astype("int32"), scoring_function=("K2", K2Score), params=params,
+        bn.add_edges(data_discretized_enc.astype("int32"), scoring_function=scoring, params=params,
                      progress_bar=False)
         all_edges += [tuple(e) for e in bn.edges.copy()]
         bn.edges = list()
