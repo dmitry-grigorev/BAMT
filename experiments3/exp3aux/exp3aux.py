@@ -8,7 +8,7 @@ from experiments3.random_DAG_generation import *
 import random
 
 
-def simulation(n_features, scoring, n_samples=2000, random_state=42, n_trials=20, transitive_mode=False):
+def simulation(n_features, scoring, construction_method, n_samples=2000, random_state=42, n_trials=20, transitive_mode=False, verbose=False):
     names = ['feature_' + str(i + 1) for i in range(n_features)]
     rde_acc, wde_acc = list(), list()
     asce_acc, dsce_acc = list(), list()
@@ -49,7 +49,7 @@ def simulation(n_features, scoring, n_samples=2000, random_state=42, n_trials=20
         true_edges, signs = instantiate_gradation_relation(names, adj_m)
         data = build_dataset(adj_m, names, n_samples, seed)
 
-        kresult = ex2aux.construct_by_kmeans(data, [], scoring=scoring)
+        kresult = construction_method(data, [], scoring=scoring) #ex2aux.construct_by_kmeans(data, [], scoring=scoring)
         kbn = kresult['bn']
 
         states_by_indegree = {k: sum([[f"feature_{n}{i}" for i in range(3)] for n in nodes], start=[]) for k, nodes in
@@ -82,13 +82,11 @@ def simulation(n_features, scoring, n_samples=2000, random_state=42, n_trials=20
         wrong_acc.append(wronge)
 
         inner_nodes = [e for e in kbn.nodes_names if e not in states_by_indegree[0]]
-        mean_indegree.append(calculate_average_indegree(kbn_nx, inner_nodes))
+        mean_indegree.append(calculate_average_indegree(kbn_nx, inner_nodes, inner_nodes))
 
         for k in mean_indegree_by_original.keys():
             if k in states_by_indegree.keys():
                 mean_indegree_by_original[k].append(calculate_average_indegree(kbn_nx, states_by_indegree[k], states_by_indegree[k]))
-
-        #print(mean_indegree_by_original)
 
         del kbn
         del edges
@@ -106,17 +104,18 @@ def simulation(n_features, scoring, n_samples=2000, random_state=42, n_trials=20
               sum(wrong_acc) / n_trials, min(wrong_acc), max(wrong_acc),
               sum(mean_indegree) / n_trials, min(mean_indegree), max(mean_indegree)
               ]
-
-    print("mean, min and max precision on right direction: {:.3f} {:.3f} {:.3f} \n".format(*answer[:3]))
-    print("mean, min and max precision on wrong direction: {:.3f} {:.3f} {:.3f} \n".format(*answer[3:6]))
-    print("mean, min and max precision on ascending relations: {:.3f} {:.3f} {:.3f} \n".format(*answer[6:9]))
-    print("mean, min and max precision on descending relations: {:.3f} {:.3f} {:.3f} \n".format(*answer[9:12]))
-    print("mean, min and max precision on wrong edges among all in BN: {:.3f} {:.3f} {:.3f} \n".format(*answer[12:15]))
-    print("mean, min and max mean in-degree: {:.3f} {:.3f} {:.3f} \n".format(*answer[15:18]))
-    print("mean in-degrees in BNs according to the original ones")
+    if verbose:
+        print("mean, min and max precision on right direction: {:.3f} {:.3f} {:.3f} \n".format(*answer[:3]))
+        print("mean, min and max precision on wrong direction: {:.3f} {:.3f} {:.3f} \n".format(*answer[3:6]))
+        print("mean, min and max precision on ascending relations: {:.3f} {:.3f} {:.3f} \n".format(*answer[6:9]))
+        print("mean, min and max precision on descending relations: {:.3f} {:.3f} {:.3f} \n".format(*answer[9:12]))
+        print("mean, min and max precision on wrong edges among all in BN: {:.3f} {:.3f} {:.3f} \n".format(*answer[12:15]))
+        print("mean, min and max mean in-degree: {:.3f} {:.3f} {:.3f} \n".format(*answer[15:18]))
+        print("mean in-degrees in BNs according to the original ones")
     for k, e in mean_indegree_by_original.items():
         value = sum(e)/len(e) if len(e) > 0 else -np.inf
-        print(f"Supposed in-degree: {k}, having {value}")
+        if verbose:
+            print(f"Supposed in-degree: {k}, having {value}")
         answer.append(value)
 
     return answer
